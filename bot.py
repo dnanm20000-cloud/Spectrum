@@ -20,40 +20,39 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text
     
-    # التَّأَكُّدُ مِنْ أَنَّ الرِّسَالَةَ رَابِطٌ
     if not url.startswith(("http://", "https://")):
         await update.message.reply_text("الرَّجَاءُ إِرْسَالُ رَابِطِ فِيدِيُو صَحِيحٍ ⚠️")
         return
 
     status_msg = await update.message.reply_text("جَارٍِي تَحْمِيلُ الْفِيدِيُو، انْتَظِرْ قَلِيلًا... ⏳")
 
-    # إِعْدَادَاتُ التَّحْمِيلِ
     ydl_opts = {
         'format': 'best',
         'outtmpl': 'video.mp4',
         'quiet': True,
+        'no_warnings': True,
     }
 
     try:
+        # التَّحْمِيلُ بِاسْتِخْدَامِ yt-dlp
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
         
-        # إِرْسَالُ الْفِيدِيُو لِلْمُسْتَخْدِمِ
-        with open('video.mp4', 'rb') as video:
-            await update.message.reply_video(video=video, caption=REQUIRED_PHRASE)
+        # إِرْسَالُ الْفِيدِيُو
+        if os.path.exists('video.mp4'):
+            with open('video.mp4', 'rb') as video:
+                await update.message.reply_video(video=video, caption=REQUIRED_PHRASE)
+            os.remove('video.mp4')
         
-        # حَذْفُ الْمِلَفِّ بَعْدَ الْإِرْسَالِ لِتَوْفِيرِ الْمِسَاحَةِ
-        os.remove('video.mp4')
         await status_msg.delete()
 
     except Exception as e:
-        await status_msg.edit_text(f"حَدَثَ خَطَأٌ أَثْنَاءَ التَّحْمِيلِ: {str(e)}")
+        await update.message.reply_text(f"حَدَثَ خَطَأٌ: {str(e)}")
 
-def main():
-    """تَشْغِيلُ الْبُوتِ"""
+if __name__ == "__main__":
+    print("--- الْبُوتُ يَعْمَلُ الآنَ عَلَى Termux ---")
     application = Application.builder().token(TOKEN).build()
-
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
-    print("الْبُوتُ يَعْمَلُ الآنَ
+    application.add_handler(MessageHandler(filters.VIDEO | filters.PHOTO | filters.Document.ALL, lambda u, c: None))
+    application.run_polling()
